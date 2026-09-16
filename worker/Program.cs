@@ -1,9 +1,11 @@
 using System;
 using System.Data.Common;
 using System.Linq;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Npgsql;
 using StackExchange.Redis;
@@ -12,11 +14,11 @@ namespace Worker
 {
     public class Program
     {
-        public static int Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
             try
             {
-                var pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
+                var pgsql = OpenDbConnection(CreateDbConnectionString());
                 var redisConn = OpenRedisConnection("redis");
                 var redis = redisConn.GetDatabase();
 
@@ -37,7 +39,7 @@ namespace Worker
                         redisConn = OpenRedisConnection("redis");
                         redis = redisConn.GetDatabase();
                     }
-                    string json = redis.ListLeftPopAsync("votes").Result;
+                    string json = await redis.ListLeftPopAsync("votes");
                     if (json != null)
                     {
                         var vote = JsonConvert.DeserializeAnonymousType(json, definition);
@@ -46,7 +48,7 @@ namespace Worker
                         if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
                         {
                             Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
+                            pgsql = OpenDbConnection(CreateDbConnectionString());
                         }
                         else
                         { // Normal +1 vote requested
@@ -100,6 +102,19 @@ namespace Worker
             command.ExecuteNonQuery();
 
             return connection;
+        }
+
+        private static string CreateDbConnectionString()
+        {
+            var passwordFile = Environment.GetEnvironmentVariable("DB_PASSWORD_FILE");
+            var password = !string.IsNullOrEmpty(passwordFile)
+                ? File.ReadAllText(passwordFile).Trim()
+                : Environment.GetEnvironmentVariable("DB_PASSWORD");
+            if (string.IsNullOrEmpty(password))
+            {
+                throw new InvalidOperationException("DB_PASSWORD_FILE or DB_PASSWORD must be configured");
+            }
+            return $"Server=db;Username=postgres;Password={password};";
         }
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)

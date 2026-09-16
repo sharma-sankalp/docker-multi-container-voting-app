@@ -5,6 +5,9 @@ host="$(hostname -i || echo '127.0.0.1')"
 user="${POSTGRES_USER:-postgres}"
 db="${POSTGRES_DB:-$POSTGRES_USER}"
 export PGPASSWORD="${POSTGRES_PASSWORD:-}"
+if [ -n "${POSTGRES_PASSWORD_FILE:-}" ] && [ -r "$POSTGRES_PASSWORD_FILE" ]; then
+	export PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")"
+fi
 
 args=(
 	# force postgres to not use the local unix socket (test "external" connectibility)

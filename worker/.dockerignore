@@ -1,0 +1,12 @@
+.git
+.github
+.env
+*.env
+secrets
+*.log
+bin
+obj
+.vscode
+.idea
+TestResults
+coverage

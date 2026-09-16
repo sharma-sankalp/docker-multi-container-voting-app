@@ -1,4 +1,5 @@
 var express = require('express'),
+  fs = require('fs'),
     async = require('async'),
     { Pool } = require('pg'),
     cookieParser = require('cookie-parser'),
@@ -17,8 +18,14 @@ io.on('connection', function (socket) {
   });
 });
 
+var password = process.env.DB_PASSWORD_FILE
+  ? fs.readFileSync(process.env.DB_PASSWORD_FILE, 'utf8').trim()
+  : process.env.DB_PASSWORD;
+if (!password) {
+  throw new Error('DB_PASSWORD_FILE or DB_PASSWORD must be configured');
+}
 var pool = new Pool({
-  connectionString: 'postgres://postgres:postgres@db/postgres'
+  connectionString: 'postgres://postgres:' + encodeURIComponent(password) + '@db/postgres'
 });
 
 async.retry(

@@ -7,11 +7,19 @@ services:
     build: 
       context: ./vote
       target: dev
+    environment:
+      PORT: 8080
     depends_on:
       redis:
         condition: service_healthy
     healthcheck: 
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test:
+      - CMD
+      - python
+      - -c
+      - |
+        import urllib.request
+        urllib.request.urlopen("http://localhost:8080", timeout=2)
       interval: 15s
       timeout: 5s
       retries: 3
@@ -19,22 +27,24 @@ services:
     volumes:
      - ./vote:/usr/local/app
     ports:
-      - "8080:80"
+      - "8080:8080"
     networks:
       - front-tier
       - back-tier
 
   result:
-    build: ./result
-    # use nodemon rather than node for local dev
-    entrypoint: nodemon --inspect=0.0.0.0 server.js
+    build:
+      context: ./result
+      target: dev
+    environment:
+      DB_PASSWORD: postgres
     depends_on:
       db:
         condition: service_healthy 
     volumes:
       - ./result:/usr/local/app
     ports:
-      - "8081:80"
+      - "8081:8080"
       - "127.0.0.1:9229:9229"
     networks:
       - front-tier
@@ -43,6 +53,8 @@ services:
   worker:
     build:
       context: ./worker
+    environment:
+      DB_PASSWORD: postgres
     depends_on:
       redis:
         condition: service_healthy 
@@ -86,6 +98,8 @@ services:
         condition: service_healthy 
     networks:
       - front-tier
+    environment:
+      VOTE_URL: http://vote:8080
     restart: "no"
 
 volumes:
